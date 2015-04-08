@@ -6,9 +6,9 @@ class GUI
   constructor: ->
     @cellSize = 44
     @paper = Snap 16 * @cellSize, 15 * @cellSize
-    @bricks = []
     do @_bindEvents
     do @_init
+    @tree = new QuadTree(0, {x: 0, y: 0, width: 16 * @cellSize, height: 15 * @cellSize})
 
   _init: ->
     @paper.rect 0, 0, 16 * @cellSize, 15 * @cellSize
@@ -23,10 +23,10 @@ class GUI
     for i in [0...level.length]
       for j in [0...level[0].length]
         switch level[i][j]
-          when 1 then @bricks.push @_drawBrick j * @cellSize / 2 + @cellSize, i * @cellSize / 2 + @cellSize
-          when 2 then @_drawHardBrick j * @cellSize / 2 + @cellSize, i * @cellSize / 2 + @cellSize
+          when 1 then @tree.insert @_drawBrick j * @cellSize / 2 + @cellSize, i * @cellSize / 2 + @cellSize
+          when 2 then @tree.insert @_drawHardBrick j * @cellSize / 2 + @cellSize, i * @cellSize / 2 + @cellSize
 
-    new Player @paper, @cellSize, 'Player1', @bricks
+    new Player @paper, @cellSize, 'Player1', @tree
       .drawTank()
 
   _drawBrick: (x, y) ->
@@ -85,17 +85,22 @@ class GUI
 # ==============================================
 
 class Tank
-  constructor: (paper, cellSize, name, bricks) ->
+  constructor: (paper, cellSize, name, tree) ->
     @area = paper.svg cellSize, cellSize, cellSize - 1, cellSize - 1
     @paper = paper
     @name = name
     @cellSize = cellSize
     @coords = x: @cellSize / 2, y: @cellSize / 2
     @tank = @area.g()
+    @tank.coords = {x: +@area.attr('x'), y: +@area.attr('y'), width: +@area.attr('width'), height: +@area.attr('height')}
     @direction = 2
-    @bricks = bricks
+    @tree = tree
     @mapSize = min: @cellSize, max: 13 * @cellSize
     do @_bindEvents
+
+  update: ->
+    @tank.coords.x = +@area.attr('x')
+    @tank.coords.y = +@area.attr('y')
 
   _checkCollision: (obj1, obj2) ->
     x1 = +obj1.attr 'x'
@@ -128,10 +133,11 @@ class Player extends Tank
     @direction = 1
 
     if @area.attr('x') > @mapSize.min
-      for brick in @bricks
-        if @_checkCollision @area, brick.getBBox()
-          return
+      do @update
+      bricks = []
+      @tree.retrieve(bricks, @tank.coords)
 
+      console.log bricks
       @area.attr x: '-= 4'
 
   moveRight: ->
@@ -140,10 +146,7 @@ class Player extends Tank
       @direction = 3
 
     if @area.attr('x') < @mapSize.max
-      for brick in @bricks
-        if @_checkCollision @area, brick.getBBox()
-          return
-
+      do @update
       @area.attr x: '+= 4'
 
   moveUp: ->
@@ -151,10 +154,7 @@ class Player extends Tank
     @direction = 2
 
     if @area.attr('y') > @mapSize.min
-      for brick in @bricks
-        if @_checkCollision @area, brick.getBBox()
-          return
-
+      do @update
       @area.attr y: '-= 4'
 
   moveDown: ->
@@ -162,10 +162,7 @@ class Player extends Tank
     @direction = 4
 
     if @area.attr('y') < @mapSize.max
-      for brick in @bricks
-        if @_checkCollision @area, brick.getBBox()
-          return
-
+      do @update
       @area.attr y: '+= 4'
 
   shot: ->

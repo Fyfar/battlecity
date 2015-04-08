@@ -8,9 +8,14 @@
     function GUI() {
       this.cellSize = 44;
       this.paper = Snap(16 * this.cellSize, 15 * this.cellSize);
-      this.bricks = [];
       this._bindEvents();
       this._init();
+      this.tree = new QuadTree(0, {
+        x: 0,
+        y: 0,
+        width: 16 * this.cellSize,
+        height: 15 * this.cellSize
+      });
     }
 
     GUI.prototype._init = function() {
@@ -28,14 +33,14 @@
         for (j = l = 0, ref1 = level[0].length; 0 <= ref1 ? l < ref1 : l > ref1; j = 0 <= ref1 ? ++l : --l) {
           switch (level[i][j]) {
             case 1:
-              this.bricks.push(this._drawBrick(j * this.cellSize / 2 + this.cellSize, i * this.cellSize / 2 + this.cellSize));
+              this.tree.insert(this._drawBrick(j * this.cellSize / 2 + this.cellSize, i * this.cellSize / 2 + this.cellSize));
               break;
             case 2:
-              this._drawHardBrick(j * this.cellSize / 2 + this.cellSize, i * this.cellSize / 2 + this.cellSize);
+              this.tree.insert(this._drawHardBrick(j * this.cellSize / 2 + this.cellSize, i * this.cellSize / 2 + this.cellSize));
           }
         }
       }
-      return new Player(this.paper, this.cellSize, 'Player1', this.bricks).drawTank();
+      return new Player(this.paper, this.cellSize, 'Player1', this.tree).drawTank();
     };
 
     GUI.prototype._drawBrick = function(x, y) {
@@ -101,7 +106,7 @@
   })();
 
   Tank = (function() {
-    function Tank(paper, cellSize, name, bricks) {
+    function Tank(paper, cellSize, name, tree) {
       this.area = paper.svg(cellSize, cellSize, cellSize - 1, cellSize - 1);
       this.paper = paper;
       this.name = name;
@@ -111,14 +116,25 @@
         y: this.cellSize / 2
       };
       this.tank = this.area.g();
+      this.tank.coords = {
+        x: +this.area.attr('x'),
+        y: +this.area.attr('y'),
+        width: +this.area.attr('width'),
+        height: +this.area.attr('height')
+      };
       this.direction = 2;
-      this.bricks = bricks;
+      this.tree = tree;
       this.mapSize = {
         min: this.cellSize,
         max: 13 * this.cellSize
       };
       this._bindEvents();
     }
+
+    Tank.prototype.update = function() {
+      this.tank.coords.x = +this.area.attr('x');
+      return this.tank.coords.y = +this.area.attr('y');
+    };
 
     Tank.prototype._checkCollision = function(obj1, obj2) {
       var height1, height2, width1, width2, x1, x2, y1, y2;
@@ -166,19 +182,16 @@
     }
 
     Player.prototype.moveLeft = function() {
-      var brick, k, len, ref;
+      var bricks;
       this.tank.attr({
         transform: 'r-90, ' + this.coords.x + ', ' + this.coords.y
       });
       this.direction = 1;
       if (this.area.attr('x') > this.mapSize.min) {
-        ref = this.bricks;
-        for (k = 0, len = ref.length; k < len; k++) {
-          brick = ref[k];
-          if (this._checkCollision(this.area, brick.getBBox())) {
-            return;
-          }
-        }
+        this.update();
+        bricks = [];
+        this.tree.retrieve(bricks, this.tank.coords);
+        console.log(bricks);
         return this.area.attr({
           x: '-= 4'
         });
@@ -186,7 +199,6 @@
     };
 
     Player.prototype.moveRight = function() {
-      var brick, k, len, ref;
       if (this.direction !== 3) {
         this.tank.attr({
           transform: 'r90, ' + this.coords.x + ', ' + this.coords.y
@@ -194,13 +206,7 @@
         this.direction = 3;
       }
       if (this.area.attr('x') < this.mapSize.max) {
-        ref = this.bricks;
-        for (k = 0, len = ref.length; k < len; k++) {
-          brick = ref[k];
-          if (this._checkCollision(this.area, brick.getBBox())) {
-            return;
-          }
-        }
+        this.update();
         return this.area.attr({
           x: '+= 4'
         });
@@ -208,19 +214,12 @@
     };
 
     Player.prototype.moveUp = function() {
-      var brick, k, len, ref;
       this.tank.attr({
         transform: 'r0, ' + this.coords.x + ', ' + this.coords.y
       });
       this.direction = 2;
       if (this.area.attr('y') > this.mapSize.min) {
-        ref = this.bricks;
-        for (k = 0, len = ref.length; k < len; k++) {
-          brick = ref[k];
-          if (this._checkCollision(this.area, brick.getBBox())) {
-            return;
-          }
-        }
+        this.update();
         return this.area.attr({
           y: '-= 4'
         });
@@ -228,19 +227,12 @@
     };
 
     Player.prototype.moveDown = function() {
-      var brick, k, len, ref;
       this.tank.attr({
         transform: 'r180, ' + this.coords.x + ', ' + this.coords.y
       });
       this.direction = 4;
       if (this.area.attr('y') < this.mapSize.max) {
-        ref = this.bricks;
-        for (k = 0, len = ref.length; k < len; k++) {
-          brick = ref[k];
-          if (this._checkCollision(this.area, brick.getBBox())) {
-            return;
-          }
-        }
+        this.update();
         return this.area.attr({
           y: '+= 4'
         });
