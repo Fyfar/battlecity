@@ -6,9 +6,10 @@ class GUI
   constructor: ->
     @cellSize = 44
     @paper = Snap 16 * @cellSize, 15 * @cellSize
+    @tree = new QuadTree(0, {x: 0, y: 0, width: 16 * @cellSize, height: 15 * @cellSize})
+
     do @_bindEvents
     do @_init
-    @tree = new QuadTree(0, {x: 0, y: 0, width: 16 * @cellSize, height: 15 * @cellSize})
 
   _init: ->
     @paper.rect 0, 0, 16 * @cellSize, 15 * @cellSize
@@ -22,63 +23,90 @@ class GUI
   drawLevel: (level) ->
     for i in [0...level.length]
       for j in [0...level[0].length]
-        switch level[i][j]
-          when 1 then @tree.insert @_drawBrick j * @cellSize / 2 + @cellSize, i * @cellSize / 2 + @cellSize
-          when 2 then @tree.insert @_drawHardBrick j * @cellSize / 2 + @cellSize, i * @cellSize / 2 + @cellSize
+        if level[i][j] is 0 then continue
+
+        x = j * @cellSize / 2 + @cellSize
+        y = i * @cellSize / 2 + @cellSize
+
+        if level[i][j] is 1
+            brick = new Brick(x, y, @cellSize, @paper)
+        else if level[i][j]
+            brick = new HardBrick(x, y, @cellSize, @paper)
+
+        brick.draw()
+        @tree.insert(brick)
 
     new Player @paper, @cellSize, 'Player1', @tree
       .drawTank()
-
-  _drawBrick: (x, y) ->
-    brick = @paper.g()
-
-    # fill color
-    brick.add(@paper.rect x, y, @cellSize / 2, @cellSize / 2
-      .attr fill: '#ffa500')
-
-    # add shadow to brick
-    brick.add(@paper.rect x, y, @cellSize / 2, @cellSize / 16
-      .attr fill: '#cd8500')
-    brick.add(@paper.rect x, y + @cellSize / 4, @cellSize / 2, @cellSize / 16
-      .attr fill: '#cd8500')
-    brick.add(@paper.rect x + @cellSize / 4, y, @cellSize / 16, @cellSize / 4
-      .attr fill: '#cd8500')
-    brick.add(@paper.rect x + @cellSize / 16, y + @cellSize / 4, @cellSize / 16, @cellSize / 4
-      .attr fill: '#cd8500')
-
-    # add cement to brick
-    brick.add(@paper.rect x, y + @cellSize / 4 - @cellSize / 16, @cellSize / 2, @cellSize / 16
-      .attr fill: '#d3d3d3')
-    brick.add(@paper.rect x, y + @cellSize / 2 - @cellSize / 16, @cellSize / 2, @cellSize / 16
-      .attr fill: '#d3d3d3')
-    brick.add(@paper.rect x + @cellSize / 4 - @cellSize / 16, y, @cellSize / 16, @cellSize / 4
-      .attr fill: '#d3d3d3')
-    brick.add(@paper.rect x, y + @cellSize / 4 - @cellSize / 16, @cellSize / 16, @cellSize / 4
-      .attr fill: '#d3d3d3')
-
-    return brick
-
-  _drawHardBrick: (x, y) ->
-    # draw brick
-    @paper.rect x, y, @cellSize / 2, @cellSize / 2
-      .attr fill: '#ccc'
-
-    # add shadow
-    path = 'M' + x + ', ' + (y + @cellSize / 2) +
-        ' L' + (x + @cellSize / 2) + ', ' + (y + @cellSize / 2) +
-        ', ' + (x + @cellSize / 2) + ', ' + y + ' Z';
-    @paper.path path
-      .attr fill: '#909090'
-
-    # draw center square
-    @paper.rect x + @cellSize / 8, y + @cellSize / 8, @cellSize / 4, @cellSize / 4
-      .attr fill: '#eee'
 
   _bindEvents: ->
     window.addEventListener 'resize', =>
       @paper.attr
         width: window.innerHeight
         height: window.innerHeight
+
+
+# ==============================================
+# Brick
+# ==============================================
+
+class Brick
+  constructor: (x, y, cellSize, paper) ->
+    @x = x
+    @y = y
+    @width = @height = cellSize / 2
+    @paper = paper
+
+  draw: ->
+    brick = @paper.g()
+
+    # fill color
+    brick.add(@paper.rect @x, @y, @width, @height
+      .attr fill: '#ffa500')
+
+    # add shadow to brick
+    brick.add(@paper.rect @x, @y, @width, @height / 8
+      .attr fill: '#cd8500')
+    brick.add(@paper.rect @x, @y + @width / 2, @width, @height / 8
+      .attr fill: '#cd8500')
+    brick.add(@paper.rect @x + @width / 2, @y, @width / 8, @height / 2
+      .attr fill: '#cd8500')
+    brick.add(@paper.rect @x + @width / 8, @y + @width / 2, @width / 8, @height / 2
+      .attr fill: '#cd8500')
+
+    # add cement to brick
+    brick.add(@paper.rect @x, @y + @width / 2 - @width / 8, @width, @height / 8
+      .attr fill: '#d3d3d3')
+    brick.add(@paper.rect @x, @y + @width - @width / 8, @width, @height / 8
+      .attr fill: '#d3d3d3')
+    brick.add(@paper.rect @x + @width / 2 - @width / 8, @y, @width / 8, @height / 2
+      .attr fill: '#d3d3d3')
+    brick.add(@paper.rect @x, @y + @width / 2 - @width / 8, @width / 8, @height / 2
+      .attr fill: '#d3d3d3')
+
+    return brick
+
+class HardBrick extends Brick
+  draw: ->
+    brick = @paper.g()
+
+    # draw brick
+    brick.add(@paper.rect @x, @y, @width, @height
+      .attr fill: '#ccc')
+
+    # add shadow
+    path = 'M' + @x + ', ' + (@y + @height) +
+      ' L' + (@x + @width) + ', ' + (@y + @height) +
+      ', ' + (@x + @width) + ', ' + @y + ' Z';
+    brick.add(@paper.path path
+      .attr fill: '#909090')
+
+    # draw center square
+    brick.add(@paper.rect @x + @width / 4, @y + @width / 4, @width / 2, @height / 2
+      .attr fill: '#eee')
+
+    return brick
+
 
 # ==============================================
 # Tank
@@ -92,10 +120,11 @@ class Tank
     @cellSize = cellSize
     @coords = x: @cellSize / 2, y: @cellSize / 2
     @tank = @area.g()
-    @tank.coords = {x: +@area.attr('x'), y: +@area.attr('y'), width: +@area.attr('width'), height: +@area.attr('height')}
+    @tank.coords = {x: +@area.attr('x'), y: +@area.attr('y'), width: @cellSize - 3, height: @cellSize - 3}
     @direction = 2
     @tree = tree
     @mapSize = min: @cellSize, max: 13 * @cellSize
+    @bricks = []
     do @_bindEvents
 
   update: ->
@@ -103,15 +132,15 @@ class Tank
     @tank.coords.y = +@area.attr('y')
 
   _checkCollision: (obj1, obj2) ->
-    x1 = +obj1.attr 'x'
-    y1 = +obj1.attr 'y'
-    width1 = +obj1.attr 'width'
-    height1 = +obj1.attr 'height'
+    x1 = obj1.x
+    y1 = obj1.y
+    width1 = obj1.width
+    height1 = obj1.height
 
-    x2 = +obj2.x
-    y2 = +obj2.y
-    width2 = +obj2.width
-    height2 = +obj2.height
+    x2 = obj2.x
+    y2 = obj2.y
+    width2 = obj2.width
+    height2 = obj2.height
 
     # skip elements
     switch @direction
@@ -134,10 +163,14 @@ class Player extends Tank
 
     if @area.attr('x') > @mapSize.min
       do @update
-      bricks = []
-      @tree.retrieve(bricks, @tank.coords)
 
-      console.log bricks
+      @bricks.length = 0
+      @tree.retrieve(@bricks, @tank.coords)
+
+      for brick in @bricks
+        unless !@_checkCollision(brick, @tank.coords)
+          return
+
       @area.attr x: '-= 4'
 
   moveRight: ->
@@ -147,6 +180,14 @@ class Player extends Tank
 
     if @area.attr('x') < @mapSize.max
       do @update
+
+      @bricks.length = 0
+      @tree.retrieve(@bricks, @tank.coords)
+
+      for brick in @bricks
+        unless !@_checkCollision(brick, @tank.coords)
+          return
+
       @area.attr x: '+= 4'
 
   moveUp: ->
@@ -155,6 +196,14 @@ class Player extends Tank
 
     if @area.attr('y') > @mapSize.min
       do @update
+
+      @bricks.length = 0
+      @tree.retrieve(@bricks, @tank.coords)
+
+      for brick in @bricks
+        unless !@_checkCollision(brick, @tank.coords)
+          return
+
       @area.attr y: '-= 4'
 
   moveDown: ->
@@ -163,6 +212,14 @@ class Player extends Tank
 
     if @area.attr('y') < @mapSize.max
       do @update
+
+      @bricks.length = 0
+      @tree.retrieve(@bricks, @tank.coords)
+
+      for brick in @bricks
+        unless !@_checkCollision(brick, @tank.coords)
+          return
+
       @area.attr y: '+= 4'
 
   shot: ->

@@ -3,11 +3,17 @@
   var QuadTree;
 
   QuadTree = (function() {
-    function QuadTree(pLevel, svg) {
+    function QuadTree(pLevel, svg, maxObjects, maxLevels) {
+      if (maxObjects == null) {
+        maxObjects = 15;
+      }
+      if (maxLevels == null) {
+        maxLevels = 5;
+      }
       this.level = pLevel;
       this.bounds = svg;
-      this._maxObjects = 15;
-      this._maxLevels = 5;
+      this._maxObjects = maxObjects;
+      this._maxLevels = maxLevels;
       this.objects = [];
       this.nodes = [];
     }

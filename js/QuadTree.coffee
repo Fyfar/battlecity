@@ -1,9 +1,9 @@
 class QuadTree
-  constructor: (pLevel, svg) ->
+  constructor: (pLevel, svg, maxObjects = 15, maxLevels = 5) ->
     @level = pLevel
     @bounds = svg
-    @_maxObjects = 15
-    @_maxLevels = 5
+    @_maxObjects = maxObjects
+    @_maxLevels = maxLevels
     @objects = []
     @nodes = []
 
